@@ -222,7 +222,11 @@ export default function CheckoutPage() {
       const orderRes = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: total, receipt: `rcpt_${Date.now()}` }),
+        body: JSON.stringify({
+          items: items.map(i => ({ slug: i.product.slug, quantity: i.quantity })),
+          shippingAmount: shipping.chargedShipping,
+          receipt: `rcpt_${Date.now()}`,
+        }),
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok || !orderData.orderId) throw new Error(orderData.error || 'Failed to create payment order');

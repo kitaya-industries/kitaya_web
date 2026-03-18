@@ -13,7 +13,8 @@ import {
   Save,
   Circle,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+// SECURITY FIX: Removed direct supabase import.
+// Stock operations now go through /api/admin/stock (PIN-protected, service role key server-side).
 
 interface OrderItem {
   name: string;
@@ -82,7 +83,11 @@ export default function AdminPage() {
     setOrdersLoading(true);
     setOrdersError('');
     try {
-      const res = await fetch(`/api/admin/orders?pin=${adminPin}`);
+      const res = await fetch('/api/admin/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: adminPin }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setOrdersError(data.error || 'Failed to load orders');
@@ -101,23 +106,21 @@ export default function AdminPage() {
     setStockError('');
     setStockSuccess('');
     try {
-      const { data, error } = await supabase
-        .from('product_stock')
-        .select('slug, stock_quantity, is_active, updated_at')
-        .order('slug', { ascending: true });
-
-      if (error) {
-        setStockError(error.message || 'Failed to load stock');
+      // SECURITY FIX: Goes through PIN-protected API route using service role key
+      // instead of direct browser -> Supabase call with anon key
+      const res = await fetch(`/api/admin/stock?pin=${pin}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setStockError(data.error || 'Failed to load stock');
         return;
       }
-
-      setStockItems((data || []) as StockItem[]);
+      setStockItems((data.stock || []) as StockItem[]);
     } catch {
       setStockError('Network error. Please try again.');
     } finally {
       setStockLoading(false);
     }
-  }, []);
+  }, [pin]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,22 +169,24 @@ export default function AdminPage() {
     setStockError('');
     setStockSuccess('');
     try {
-      const { error } = await supabase
-        .from('product_stock')
-        .update({
-          stock_quantity: Number.isFinite(item.stock_quantity)
-  ? Math.max(0, item.stock_quantity)
-  : 0,
-          is_active: !!item.is_active,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('slug', item.slug);
-
-      if (error) {
-        setStockError(error.message || `Failed to save ${item.slug}`);
+      // SECURITY FIX: Goes through PIN-protected API route using service role key
+      const res = await fetch('/api/admin/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin,
+          updates: [{
+            slug: item.slug,
+            stock_quantity: Number.isFinite(item.stock_quantity) ? Math.max(0, item.stock_quantity) : 0,
+            is_active: !!item.is_active,
+          }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setStockError(data.error || `Failed to save ${item.slug}`);
         return;
       }
-
       setStockSuccess(`Saved ${item.slug}`);
       await fetchStock();
     } catch {
@@ -196,26 +201,24 @@ export default function AdminPage() {
     setStockError('');
     setStockSuccess('');
     try {
-      const updates = stockItems.map(item =>
-        supabase
-          .from('product_stock')
-          .update({
-            stock_quantity: Number.isFinite(item.stock_quantity)
-  ? Math.max(0, item.stock_quantity)
-  : 0,
+      // SECURITY FIX: Goes through PIN-protected API route using service role key
+      const res = await fetch('/api/admin/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin,
+          updates: stockItems.map(item => ({
+            slug: item.slug,
+            stock_quantity: Number.isFinite(item.stock_quantity) ? Math.max(0, item.stock_quantity) : 0,
             is_active: !!item.is_active,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('slug', item.slug)
-      );
-
-      const results = await Promise.all(updates);
-      const failed = results.find(r => r.error);
-      if (failed?.error) {
-        setStockError(failed.error.message || 'Failed to save all stock');
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setStockError(data.error || 'Failed to save all stock');
         return;
       }
-
       setStockSuccess('All stock updated successfully');
       await fetchStock();
     } catch {

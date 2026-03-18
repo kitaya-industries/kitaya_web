@@ -39,22 +39,22 @@ export default function ContactPage() {
     };
 
     try {
-      console.log('Submitting contact to Supabase:', payload);
+      
       const { data, error: dbError } = await supabase.from('inquiries').insert(payload).select();
 
       if (dbError) {
-        console.error('Supabase error:', dbError.message, dbError.details, dbError.hint, dbError.code);
+        // console.error('Supabase error:', dbError.message, dbError.details, dbError.hint, dbError.code);
         setError(`Error: ${dbError.message}. Please email us at kitayaind@gmail.com`);
         setSending(false);
         return;
       }
 
-      console.log('Supabase success:', data);
+      // console.log('Supabase success:', data);
       setSending(false);
       setSubmitted(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Catch error:', message);
+      // console.error('Catch error:', message);
       setError(`Something went wrong: ${message}. Please email us at kitayaind@gmail.com`);
       setSending(false);
     }
