@@ -14,7 +14,6 @@ export const footerLinks = {
       { label: 'Kitaya Range', href: '/kitaya' },
       { label: 'TeaGate Range', href: '/teagate' },
       { label: 'All Products', href: '/shop' },
-      { label: 'Buy Assam Tea Online', href: '/buy-assam-tea-online' },
     ],
   },
   business: {
@@ -22,9 +21,6 @@ export const footerLinks = {
     links: [
       { label: 'Export & B2B', href: '/export' },
       { label: 'Become a Distributor', href: '/distributor' },
-      { label: 'CTC Tea Wholesale', href: '/ctc-tea-wholesale' },
-      { label: 'Bulk Tea Supplier', href: '/bulk-tea-supplier' },
-      { label: 'Private Label Tea', href: '/private-label-tea' },
     ],
   },
   company: {
