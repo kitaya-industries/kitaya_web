@@ -1,30 +1,51 @@
 /** @type {import('next').NextConfig} */
 
 const securityHeaders = [
-  // Prevents clickjacking — stops your site being loaded in an iframe on another domain
+  // Prevents clickjacking
   {
     key: 'X-Frame-Options',
     value: 'SAMEORIGIN',
   },
-  // Stops browsers guessing content types — prevents MIME-sniffing attacks
+  // Stops MIME-sniffing attacks
   {
     key: 'X-Content-Type-Options',
     value: 'nosniff',
   },
-  // Controls how much referrer info is sent when navigating away
+  // Controls referrer info
   {
     key: 'Referrer-Policy',
     value: 'strict-origin-when-cross-origin',
   },
-  // Disables browser features your site doesn't use
+  // Disables browser features — allows Razorpay payment
   {
     key: 'Permissions-Policy',
     value: 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")',
   },
-  // Tells browsers to always use HTTPS (enable once your domain is live on SSL)
+  // Forces HTTPS
   {
     key: 'Strict-Transport-Security',
     value: 'max-age=63072000; includeSubDomains; preload',
+  },
+  // Content Security Policy — explicitly allows Razorpay scripts, frames and API calls
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      // Scripts — self + Razorpay checkout + Google Fonts
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com",
+      // Styles — self + Google Fonts
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Fonts — self + Google Fonts
+      "font-src 'self' https://fonts.gstatic.com",
+      // Images — self + Supabase storage + data URIs
+      "img-src 'self' data: blob: https://*.supabase.co https://cdn.razorpay.com",
+      // Frames — Razorpay opens in an iframe
+      "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+      // API calls — self + Razorpay + Supabase + Delhivery
+      "connect-src 'self' https://*.supabase.co https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://track.delhivery.com",
+      // Workers — Razorpay uses service workers
+      "worker-src 'self' blob:",
+    ].join('; '),
   },
 ];
 
@@ -36,7 +57,6 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Apply security headers to every route
         source: '/(.*)',
         headers: securityHeaders,
       },
