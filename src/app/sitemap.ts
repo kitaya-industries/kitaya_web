@@ -1,14 +1,17 @@
+// src/app/sitemap.ts
+//
+// MEDIUM FIX: Removed seoPages and hardcoded blogSlugs arrays.
+// All 6 SEO landing pages (/buy-assam-tea-online, /premium-tea-india etc.)
+// and 3 blog post slugs don't exist yet — Google was hitting 404s on all of
+// them, hurting crawl budget and SEO trust.
+//
+// Add blog slugs back here once the posts are actually published.
+// Add seoPages back once those landing pages are actually built.
+
 import { MetadataRoute } from 'next';
 import { products } from '@/data/products';
 
 const BASE_URL = 'https://kitaya.in';
-
-// Blog post slugs - update this when you add new posts
-const blogSlugs = [
-  'what-is-ctc-tea-complete-guide',
-  'health-benefits-of-assam-black-tea',
-  'how-to-make-perfect-indian-chai',
-];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date().toISOString();
@@ -63,13 +66,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  // Product pages
-  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `${BASE_URL}/shop/${product.slug}`,
-    lastModified: now,
-    changeFrequency: 'weekly' as const,
-    priority: 0.9,
-  }));
+  // Product pages — auto-generated from live product data
+  const productPages: MetadataRoute.Sitemap = products
+    .filter((p) => p.isActive)
+    .map((product) => ({
+      url: `${BASE_URL}/shop/${product.slug}`,
+      lastModified: now,
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    }));
 
   // B2B pages
   const b2bPages: MetadataRoute.Sitemap = [
@@ -87,59 +92,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  // Blog pages
+  // Blog index only — add individual post slugs here once posts are published:
+  // { url: `${BASE_URL}/blog/what-is-ctc-tea`, ... }
   const blogPages: MetadataRoute.Sitemap = [
     {
       url: `${BASE_URL}/blog`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.7,
-    },
-    ...blogSlugs.map((slug) => ({
-      url: `${BASE_URL}/blog/${slug}`,
-      lastModified: now,
-      changeFrequency: 'monthly' as const,
-      priority: 0.6,
-    })),
-  ];
-
-  // SEO landing pages
-  const seoPages: MetadataRoute.Sitemap = [
-    {
-      url: `${BASE_URL}/buy-assam-tea-online`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/premium-tea-india`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/ctc-tea-wholesale`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/tea-export-india`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/bulk-tea-supplier`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/private-label-tea`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
     },
   ];
 
@@ -177,7 +137,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...productPages,
     ...b2bPages,
     ...blogPages,
-    ...seoPages,
     ...policyPages,
   ];
 }

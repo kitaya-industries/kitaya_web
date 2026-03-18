@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import Razorpay from 'razorpay';
+import { products } from '@/data/products';
 
 // Use service role key for server-side writes
 const supabase = createClient(
@@ -11,7 +13,22 @@ const supabase = createClient(
 );
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const FROM_EMAIL = process.env.FROM_EMAIL || 'kitayaind@gmail.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'orders@kitaya.in';
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+});
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface ClientItem {
+  slug: string;
+  name: string;
+  brand: string;
+  weight: string;
+  quantity: number;
+  price: number; // client-sent price — used for display only, NOT for totals
+}
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -31,7 +48,7 @@ export async function POST(req: NextRequest) {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      orderData, // full order details from client
+      orderData, // customer details + item slugs from client
     } = body;
 
     // ── Step 1: Verify Razorpay signature ────────────────────────────────────
@@ -47,10 +64,81 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Step 2: Generate order number ────────────────────────────────────────
+    // ── Step 2: SERVER-SIDE price recalculation ───────────────────────────────
+    // SECURITY: Never trust prices from the client. Recalculate from our own
+    // product data using only the slugs and quantities the client sent.
+    if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+      return NextResponse.json({ error: 'Invalid order items.' }, { status: 400 });
+    }
+
+    let serverSubtotal = 0;
+    const verifiedItems: ClientItem[] = [];
+
+    for (const item of orderData.items as ClientItem[]) {
+      const product = products.find((p) => p.slug === item.slug && p.isActive);
+      if (!product) {
+        return NextResponse.json(
+          { error: `Invalid product: ${item.slug}` },
+          { status: 400 }
+        );
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20) {
+        return NextResponse.json(
+          { error: `Invalid quantity for ${item.slug}` },
+          { status: 400 }
+        );
+      }
+      serverSubtotal += product.price * item.quantity;
+      // Use server's authoritative price for the saved record, not client's
+      verifiedItems.push({
+        slug: product.slug,
+        name: product.name,
+        brand: product.brand,
+        weight: product.weight,
+        quantity: item.quantity,
+        price: product.price, // ← server price, not client price
+      });
+    }
+
+    // ── Step 3: Validate amount against the Razorpay order ───────────────────
+    // Fetch the actual Razorpay order to get the amount we set in create-order.
+    // This is the ground truth — it was calculated server-side and cannot be
+    // tampered with by the client.
+    let razorpayOrder;
+    try {
+      razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+    } catch {
+      console.error('[verify-payment] Could not fetch Razorpay order:', razorpay_order_id);
+      return NextResponse.json(
+        { error: 'Could not verify order amount. Please contact support.' },
+        { status: 400 }
+      );
+    }
+
+    // Amount from Razorpay is in paise — convert to rupees
+    const razorpayAmountRupees = Number(razorpayOrder.amount) / 100;
+
+    // Cross-check: shipping = razorpay total - our server subtotal
+    const serverShipping = Math.round((razorpayAmountRupees - serverSubtotal) * 100) / 100;
+
+    if (serverShipping < 0) {
+      // Subtotal alone exceeds what Razorpay charged — something is wrong
+      console.error('[verify-payment] Price mismatch — subtotal exceeds Razorpay amount', {
+        razorpayAmountRupees,
+        serverSubtotal,
+      });
+      return NextResponse.json(
+        { error: 'Order amount mismatch. Please contact support.' },
+        { status: 400 }
+      );
+    }
+
+    const serverTotal = razorpayAmountRupees; // what was actually charged
+
+    // ── Step 4: Generate order number ────────────────────────────────────────
     const orderNumber = generateOrderNumber();
 
-    // ── Step 3: Save order to Supabase ───────────────────────────────────────
+    // ── Step 5: Save order to Supabase (server-verified values only) ─────────
     const { error: dbError } = await supabase.from('orders').insert({
       order_number: orderNumber,
       customer_name: orderData.customerName,
@@ -61,10 +149,10 @@ export async function POST(req: NextRequest) {
       city: orderData.city,
       state: orderData.state,
       pincode: orderData.pincode,
-      items: orderData.items, // jsonb array
-      subtotal: orderData.subtotal,
-      shipping: orderData.chargedShipping,
-      total: orderData.total,
+      items: verifiedItems,          // server-verified items with correct prices
+      subtotal: serverSubtotal,       // server-calculated
+      shipping: serverShipping,       // derived from Razorpay amount
+      total: serverTotal,             // actual Razorpay charge — ground truth
       payment_method: 'razorpay',
       payment_status: 'paid',
       razorpay_order_id,
@@ -78,9 +166,9 @@ export async function POST(req: NextRequest) {
       // Payment is verified — still return success, log for manual follow-up
     }
 
-    // ── Step 4: Send confirmation email ──────────────────────────────────────
-    const itemsHtml = orderData.items
-      .map((item: { name: string; weight: string; quantity: number; price: number; brand: string }) => `
+    // ── Step 6: Send confirmation email ──────────────────────────────────────
+    const itemsHtml = verifiedItems
+      .map((item) => `
         <tr>
           <td style="padding:14px 0;border-bottom:1px solid #F0EDE8;">
             <div style="font-family:Georgia,serif;font-size:15px;color:#2D2D2A;margin-bottom:2px;">${item.name}</div>
@@ -136,7 +224,6 @@ export async function POST(req: NextRequest) {
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="padding-right:10px;vertical-align:middle;">
-                          <!-- Checkmark circle -->
                           <div style="width:22px;height:22px;border:1.5px solid #1A1A18;border-radius:50%;display:inline-block;text-align:center;line-height:22px;font-size:12px;color:#1A1A18;">✓</div>
                         </td>
                         <td style="vertical-align:middle;">
@@ -193,7 +280,7 @@ export async function POST(req: NextRequest) {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="font-family:Arial,sans-serif;font-size:13px;color:#7A7A72;">Subtotal</td>
-                        <td style="font-family:Arial,sans-serif;font-size:13px;color:#2D2D2A;text-align:right;">${formatINR(orderData.subtotal)}</td>
+                        <td style="font-family:Arial,sans-serif;font-size:13px;color:#2D2D2A;text-align:right;">${formatINR(serverSubtotal)}</td>
                       </tr>
                     </table>
                   </td>
@@ -203,7 +290,7 @@ export async function POST(req: NextRequest) {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="font-family:Arial,sans-serif;font-size:13px;color:#7A7A72;">Shipping</td>
-                        <td style="font-family:Arial,sans-serif;font-size:13px;color:#2D2D2A;text-align:right;">${formatINR(orderData.chargedShipping)}</td>
+                        <td style="font-family:Arial,sans-serif;font-size:13px;color:#2D2D2A;text-align:right;">${formatINR(serverShipping)}</td>
                       </tr>
                     </table>
                   </td>
@@ -213,7 +300,7 @@ export async function POST(req: NextRequest) {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="font-family:Georgia,serif;font-size:17px;color:#2D2D2A;">Total Paid</td>
-                        <td style="font-family:Georgia,serif;font-size:17px;color:#2D2D2A;text-align:right;font-weight:bold;">${formatINR(orderData.total)}</td>
+                        <td style="font-family:Georgia,serif;font-size:17px;color:#2D2D2A;text-align:right;font-weight:bold;">${formatINR(serverTotal)}</td>
                       </tr>
                     </table>
                   </td>

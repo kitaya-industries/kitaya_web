@@ -43,20 +43,20 @@ export default function ExportInquiryForm() {
     };
 
     try {
-      console.log('Submitting to Supabase:', payload);
+      // console.log('Submitting to Supabase:', payload);
       const { data, error: dbError } = await supabase.from('inquiries').insert(payload).select();
 
       if (dbError) {
-        console.error('Supabase error:', dbError.message, dbError.details, dbError.hint, dbError.code);
+        // console.error('Supabase error:', dbError.message, dbError.details, dbError.hint, dbError.code);
         setError(`Error: ${dbError.message}. Please email us at kitayaind@gmail.com`);
         return;
       }
 
-      console.log('Supabase success:', data);
+      // console.log('Supabase success:', data);
       setSubmitted(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Catch error:', message);
+      // console.error('Catch error:', message);
       setError(`Something went wrong: ${message}. Please email us at kitayaind@gmail.com`);
     } finally {
       setLoading(false);
