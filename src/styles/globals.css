@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* scroll-behavior: smooth removed from here — causes fixed elements to
+       disappear on iOS Safari during scroll. Use JS scroll or apply only
+       to specific elements instead. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-body bg-bg text-charcoal;
+    /* Prevent horizontal overflow on mobile */
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    @apply bg-gold text-white;
+  }
+}
+
+@layer components {
+  .section-padding {
+    @apply px-6 py-20 md:px-10 lg:px-[60px] lg:py-[120px];
+  }
+
+  .section-label {
+    @apply text-[11px] tracking-[4px] uppercase text-gold font-medium mb-4;
+  }
+
+  .section-title {
+    @apply font-display text-3xl md:text-[44px] font-normal text-charcoal leading-tight;
+  }
+
+  .btn-primary {
+    @apply bg-gold text-bg-dark border-none px-10 py-4 text-[13px] tracking-[2px] uppercase font-body font-medium cursor-pointer
+    transition-all duration-300 hover:bg-gold-light hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(197,165,90,0.4)];
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-bg-warm border border-warm-gray/40 px-10 py-4 text-[13px] tracking-[2px] uppercase font-body font-normal cursor-pointer
+    transition-all duration-300 hover:border-gold hover:text-gold;
+  }
+
+  .btn-dark {
+    @apply bg-charcoal text-white px-10 py-4 text-[13px] tracking-[2px] uppercase font-body font-medium cursor-pointer
+    transition-all duration-300 hover:bg-gold;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Darken body text on light background sections for readability */
+:where(section):not([class*="bg-bg-dark"]) :where(.text-warm-gray) {
+  color: #141313;
+}
+
+/* Keep original lighter text on dark backgrounds (footer, dark sections) */
+[class*="bg-bg-dark"] .text-warm-gray,
+footer .text-warm-gray {
+  color: #9B978F;
+}
