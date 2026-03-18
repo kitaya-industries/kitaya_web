@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import '@/styles/globals.css';
 import { CartProvider } from '@/lib/cart';
 import Navbar from '@/components/Navbar';
@@ -14,12 +15,6 @@ export const metadata: Metadata = {
     shortcut: '/images/brands/logo-url.png',
     apple: '/images/brands/logo-url.png',
   },
-
-  // ── LOW FIX: Added og:image so WhatsApp, LinkedIn, Twitter show a
-  // preview card when someone shares kitaya.in. Without this, shares
-  // show a blank card with no image.
-  // Uses kitaya-hero.png (1200×630 is the ideal OG image size).
-  // If you have a dedicated OG image, replace the url below.
   openGraph: {
     siteName: 'Kitaya Industries',
     locale: 'en_IN',
@@ -37,8 +32,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-
-  // ── Twitter / X card — shows large image preview when shared on X
   twitter: {
     card: 'summary_large_image',
     title: 'Kitaya Industries - Premium Assam Tea',
@@ -61,6 +54,11 @@ export default function RootLayout({
           <main>{children}</main>
           <Footer />
         </CartProvider>
+        {/* Razorpay loaded globally so it's ready before checkout mounts */}
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

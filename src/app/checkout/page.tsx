@@ -132,24 +132,40 @@ export default function CheckoutPage() {
   const cartDiscount = getCartShippingDiscount(items);
   const total = subtotal + (shipping?.chargedShipping ?? 0);
 
-  // ── Load Razorpay script + fetch key from server ───────────────────────────
+  // ── Fetch Razorpay key + detect script loaded via layout.tsx ─────────────
+  // The Razorpay script is loaded globally in layout.tsx via Next.js Script.
+  // We just need to wait for window.Razorpay to be available.
   useEffect(() => {
-   fetch('/api/payment-config')
-  .then(r => r.json())
-  .then(d => { 
-    if (d.keyId) setRazorpayKeyId(d.keyId);
-    else console.error('[payment-config] No keyId returned:', d);
-  })
-  .catch((err) => console.error('[payment-config] fetch failed:', err));
+    // Fetch the public key ID from server
+    fetch('/api/payment-config')
+      .then(r => r.json())
+      .then(d => {
+        if (d.keyId) setRazorpayKeyId(d.keyId);
+        else console.error('[payment-config] No keyId returned:', d);
+      })
+      .catch((err) => console.error('[payment-config] fetch failed:', err));
 
+    // Check if Razorpay script already loaded (via layout.tsx Script tag)
     if (typeof window !== 'undefined' && window.Razorpay) {
       setRazorpayLoaded(true);
       return;
     }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => setRazorpayLoaded(true);
-    document.head.appendChild(script);
+
+    // Poll for window.Razorpay in case Script tag is still loading
+    const interval = setInterval(() => {
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        setRazorpayLoaded(true);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Stop polling after 10 seconds
+    const timeout = setTimeout(() => clearInterval(interval), 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, []);
 
   // ── Fetch shipping rate ────────────────────────────────────────────────────
@@ -225,11 +241,7 @@ export default function CheckoutPage() {
       const orderRes = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map(i => ({ slug: i.product.slug, quantity: i.quantity })),
-          shippingAmount: shipping.chargedShipping,
-          receipt: `rcpt_${Date.now()}`,
-        }),
+        body: JSON.stringify({ amount: total, receipt: `rcpt_${Date.now()}` }),
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok || !orderData.orderId) throw new Error(orderData.error || 'Failed to create payment order');
