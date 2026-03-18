@@ -134,10 +134,13 @@ export default function CheckoutPage() {
 
   // ── Load Razorpay script + fetch key from server ───────────────────────────
   useEffect(() => {
-    fetch('/api/payment-config')
-      .then(r => r.json())
-      .then(d => { if (d.keyId) setRazorpayKeyId(d.keyId); })
-      .catch(() => {});
+   fetch('/api/payment-config')
+  .then(r => r.json())
+  .then(d => { 
+    if (d.keyId) setRazorpayKeyId(d.keyId);
+    else console.error('[payment-config] No keyId returned:', d);
+  })
+  .catch((err) => console.error('[payment-config] fetch failed:', err));
 
     if (typeof window !== 'undefined' && window.Razorpay) {
       setRazorpayLoaded(true);
