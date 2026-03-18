@@ -57,7 +57,7 @@ export default function RootLayout({
         {/* Razorpay loaded globally so it's ready before checkout mounts */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="lazyOnload"
+          strategy="beforeInteractive"
         />
       </body>
     </html>
