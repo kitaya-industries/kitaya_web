@@ -280,8 +280,7 @@ export default function AboutPage() {
                 <div className="font-accent text-lg italic mb-6" style={{ color: 'rgba(255,255,255,0.8)' }}>Magical Taste - Kadak Chai</div>
                 <p className="text-[15px] leading-7 font-light mb-6" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   Bold Assam CTC tea for those who love a strong cup of chai. Deep rich
-                  colour, robust flavour, and an unmistakable aroma. Available in 250g
-                  (₹70) and 1 Kg (₹300).
+                  colour, robust flavour, and an unmistakable aroma. Available in 250g and 1 Kg packs.
                 </p>
                 <Link href="/kitaya" className="inline-flex items-center gap-2.5 text-gold text-[13px] tracking-[2px] uppercase transition-all duration-300 hover:gap-4">
                   Explore Kitaya <span>→</span>
@@ -299,8 +298,7 @@ export default function AboutPage() {
                 <div className="font-accent text-lg italic mb-6" style={{ color: 'rgba(255,255,255,0.8)' }}>Premium Selection</div>
                 <p className="text-[15px] leading-7 font-light mb-6" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   Handpicked from select Assam gardens for the discerning tea lover. A
-                  refined experience honouring the finest Assam has to offer. Available
-                  in 250g (₹100) and 1 Kg (₹400).
+                  refined experience honouring the finest Assam has to offer. Available in 250g and 1 Kg packs.
                 </p>
                 <Link href="/teagate" className="inline-flex items-center gap-2.5 text-gold text-[13px] tracking-[2px] uppercase transition-all duration-300 hover:gap-4">
                   Explore TeaGate <span>→</span>
