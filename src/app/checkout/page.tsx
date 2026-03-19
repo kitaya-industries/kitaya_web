@@ -428,7 +428,7 @@ export default function CheckoutPage() {
                   </div>
                   {errors.pincode && <p className="text-[11px] text-kitaya-red mt-1.5 font-light">{errors.pincode}</p>}
                   {shippingError && !errors.pincode && <p className="text-[11px] text-kitaya-red mt-1.5 font-light">{shippingError}</p>}
-                  {shipping && !shippingLoading && <p className="text-[11px] text-green-600 mt-1.5 font-light">✓ Delivery available — shipping calculated</p>}
+                  {shipping && !shippingLoading && <p className="text-[11px] text-green-600 mt-1.5 font-light">✓ Delivery available at this pincode</p>}
                   {form.pincode.length > 0 && form.pincode.length < 6 && !errors.pincode && (
                     <p className="text-[11px] text-warm-gray mt-1.5 font-light">Shipping calculated after full pincode</p>
                   )}
